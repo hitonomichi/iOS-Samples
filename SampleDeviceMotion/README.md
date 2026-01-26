@@ -2,6 +2,10 @@
 
 AirPodsのモーションセンサー（CMHeadphoneMotionManager）を使用して、頭の動きを検知するiOSサンプルアプリです。
 
+## 関連記事
+
+- Zenn: https://zenn.dev/hitonomichi/articles/c7c4a03bc76723
+
 ## 機能
 
 - 頷き（上下）の検知
