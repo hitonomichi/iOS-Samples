@@ -24,6 +24,7 @@ enum HeadGesture {
 
 protocol HeadphoneMotionManagerDelegate: AnyObject {
     func headphoneMotionManager(_ manager: HeadphoneMotionManager, didDetect gesture: HeadGesture)
+    func headphoneMotionManager(_ manager: HeadphoneMotionManager, didUpdateDebugInfo info: String)
 }
 
 class HeadphoneMotionManager {
@@ -32,9 +33,9 @@ class HeadphoneMotionManager {
 
     private let motionManager = CMHeadphoneMotionManager()
 
-    // ジェスチャー検知の閾値（ラジアン）
-    private let pitchThreshold: Double = 0.3  // 約17度
-    private let yawThreshold: Double = 0.3    // 約17度
+    // ジェスチャー検知の閾値（ラジアン/フレーム）
+    private let pitchThreshold: Double = 0.04  // 約2.3度/フレーム
+    private let yawThreshold: Double = 0.04    // 約2.3度/フレーム
 
     // 前回の値を保持
     private var previousPitch: Double?
@@ -50,12 +51,23 @@ class HeadphoneMotionManager {
 
     func startUpdates() {
         guard motionManager.isDeviceMotionAvailable else {
-            print("Headphone motion is not available")
+            delegate?.headphoneMotionManager(self, didUpdateDebugInfo: "❌ Headphone motion is not available")
             return
         }
 
+        delegate?.headphoneMotionManager(self, didUpdateDebugInfo: "✅ モーション監視を開始...")
+
         motionManager.startDeviceMotionUpdates(to: .main) { [weak self] motion, error in
-            guard let self = self, let motion = motion else { return }
+            guard let self = self else { return }
+
+            if let error = error {
+                self.delegate?.headphoneMotionManager(self, didUpdateDebugInfo: "❌ エラー: \(error.localizedDescription)")
+                return
+            }
+
+            guard let motion = motion else {
+                return
+            }
             self.processMotion(motion)
         }
     }
@@ -65,6 +77,8 @@ class HeadphoneMotionManager {
         previousPitch = nil
         previousYaw = nil
     }
+
+    private var debugUpdateCounter = 0
 
     private func processMotion(_ motion: CMDeviceMotion) {
         let currentPitch = motion.attitude.pitch
@@ -76,7 +90,21 @@ class HeadphoneMotionManager {
         }
 
         guard let prevPitch = previousPitch, let prevYaw = previousYaw else {
+            // 初回データ受信
+            let info = "📡 初回データ受信 pitch=\(String(format: "%.3f", currentPitch)) yaw=\(String(format: "%.3f", currentYaw))"
+            delegate?.headphoneMotionManager(self, didUpdateDebugInfo: info)
             return
+        }
+
+        let pitchDelta = currentPitch - prevPitch
+        let yawDelta = currentYaw - prevYaw
+
+        // 10回に1回デバッグ情報を出力
+        debugUpdateCounter += 1
+        if debugUpdateCounter >= 10 {
+            debugUpdateCounter = 0
+            let info = "pitch=\(String(format: "%.3f", currentPitch)) Δ=\(String(format: "%+.3f", pitchDelta)) | yaw=\(String(format: "%.3f", currentYaw)) Δ=\(String(format: "%+.3f", yawDelta))"
+            delegate?.headphoneMotionManager(self, didUpdateDebugInfo: info)
         }
 
         // クールダウン中は検知しない
@@ -84,12 +112,9 @@ class HeadphoneMotionManager {
             return
         }
 
-        let pitchDelta = currentPitch - prevPitch
-        let yawDelta = currentYaw - prevYaw
-
         // 上下の検知（pitchの変化）
         if abs(pitchDelta) > pitchThreshold {
-            let gesture: HeadGesture = pitchDelta > 0 ? .down : .up
+            let gesture: HeadGesture = pitchDelta > 0 ? .up : .down
             notifyGesture(gesture)
             return
         }
