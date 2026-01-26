@@ -16,7 +16,7 @@ AirPodsのモーションセンサー（CMHeadphoneMotionManager）を使用し�
 ## 必要な設定
 
 1. AirPodsをiPhoneに接続
-2. 設定 > アクセシビリティ > AirPods > ヘッドジェスチャー をON
+2. 設定 > AirPods（自分のAirPodの名前） > 頭のジェスチャー をON
 3. アプリ初回起動時にモーションアクセスを許可
 
 ## 動作環境
